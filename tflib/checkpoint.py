@@ -19,9 +19,11 @@ def load_checkpoint(ckpt_dir_or_file, session, var_list=None):
 
     restorer = tf.train.Saver(var_list)
     restorer.restore(session, ckpt_dir_or_file)
-    print(' [*] Loading checkpoint succeeds! Copy variables from % s!' % ckpt_dir_or_file)
+    print(' [*] Loading checkpoint succeeds! Copy variables from % s!' %
+          ckpt_dir_or_file)
 
 
 def init_from_checkpoint(ckpt_dir_or_file, assignment_map={'/': '/'}):
     tf.train.init_from_checkpoint(ckpt_dir_or_file, assignment_map)
-    print(' [*] Loading checkpoint succeeds! Copy variables from % s!' % ckpt_dir_or_file)
+    print(' [*] Loading checkpoint succeeds! Copy variables from % s!' %
+          ckpt_dir_or_file)

@@ -33,10 +33,12 @@ def Genc(x, dim=64, n_layers=5, multi_inputs=1, is_training=True):
         for i in range(n_layers):
             d = min(dim * 2**i, MAX_DIM)
             if multi_inputs > i and i > 0:
-                z = tf.concat([z, tf.image.resize_bicubic(x, (h//(2**i), w//(2**i)))], 3)
+                z = tf.concat([z, tf.image.resize_bicubic(
+                    x, (h // (2**i), w // (2**i)))], 3)
             z = conv_bn_lrelu(z, d, 4, 2)
             zs.append(z)
         return zs
+
 
 def ConvGRUCell(in_data, state, out_channel, is_training=True, kernel_size=3, norm='none', pass_state='lstate'):
     if norm == 'bn':
@@ -48,18 +50,23 @@ def ConvGRUCell(in_data, state, out_channel, is_training=True, kernel_size=3, no
     gate = partial(conv, normalizer_fn=norm_fn, activation_fn=sigmoid)
     info = partial(conv, normalizer_fn=norm_fn, activation_fn=tanh)
     with tf.name_scope('ConvGRUCell'):
-        state_ = dconv(state, out_channel, 4, 2)  # upsample and make `channel` identical to `out_channel`
-        reset_gate = gate(tf.concat([in_data, state_], axis=3), out_channel, kernel_size)
-        update_gate = gate(tf.concat([in_data, state_], axis=3), out_channel, kernel_size)
+        # upsample and make `channel` identical to `out_channel`
+        state_ = dconv(state, out_channel, 4, 2)
+        reset_gate = gate(
+            tf.concat([in_data, state_], axis=3), out_channel, kernel_size)
+        update_gate = gate(
+            tf.concat([in_data, state_], axis=3), out_channel, kernel_size)
         new_state = reset_gate * state_
-        new_info = info(tf.concat([in_data, new_state], axis=3), out_channel, kernel_size)
-        output = (1-update_gate)*state_ + update_gate*new_info
+        new_info = info(
+            tf.concat([in_data, new_state], axis=3), out_channel, kernel_size)
+        output = (1 - update_gate) * state_ + update_gate * new_info
         if pass_state == 'gru':
             return output, output
         elif pass_state == 'direct':
             return output, state_
-        else: # 'stu'
+        else:  # 'stu'
             return output, new_state
+
 
 def Gstu(zs, _a, dim=64, n_layers=1, inject_layers=0, is_training=True, kernel_size=3, norm='none', pass_state='stu'):
     def _concat(z, z_, _a):
@@ -71,11 +78,11 @@ def Gstu(zs, _a, dim=64, n_layers=1, inject_layers=0, is_training=True, kernel_s
             _a = tf.tile(_a, [1, tl.shape(z)[1], tl.shape(z)[2], 1])
             feats.append(_a)
         return tf.concat(feats, axis=3)
-    
+
     with tf.variable_scope('Gstu', reuse=tf.AUTO_REUSE):
         zs_ = [zs[-1]]
         state = _concat(zs[-1], None, _a)
-        for i in range(n_layers): # n_layers <= 4
+        for i in range(n_layers):  # n_layers <= 4
             d = min(dim * 2**(n_layers - 1 - i), MAX_DIM)
             output = ConvGRUCell(zs[n_layers - 1 - i], state, d, is_training=is_training,
                                  kernel_size=kernel_size, norm=norm, pass_state=pass_state)
@@ -85,6 +92,7 @@ def Gstu(zs, _a, dim=64, n_layers=1, inject_layers=0, is_training=True, kernel_s
             else:
                 state = output[1]
         return zs_
+
 
 def Gdec(zs, _a, dim=64, n_layers=5, shortcut_layers=1, inject_layers=0, is_training=True, one_more_conv=0):
     bn = partial(batch_norm, is_training=is_training)
@@ -114,8 +122,8 @@ def Gdec(zs, _a, dim=64, n_layers=5, shortcut_layers=1, inject_layers=0, is_trai
                 if inject_layers > i:
                     z = _concat(z, None, _a)
             else:
-                if one_more_conv: # add one more conv after the decoder
-                    z = dconv_bn_relu(z, dim//4, 4, 2)
+                if one_more_conv:  # add one more conv after the decoder
+                    z = dconv_bn_relu(z, dim // 4, 4, 2)
                     x = tf.nn.tanh(dconv(z, 3, one_more_conv))
                 else:
                     x = z = tf.nn.tanh(dconv(z, 3, 4, 2))
@@ -123,7 +131,8 @@ def Gdec(zs, _a, dim=64, n_layers=5, shortcut_layers=1, inject_layers=0, is_trai
 
 
 def D(x, n_att, dim=64, fc_dim=MAX_DIM, n_layers=5):
-    conv_in_lrelu = partial(conv, normalizer_fn=instance_norm, activation_fn=lrelu)
+    conv_in_lrelu = partial(
+        conv, normalizer_fn=instance_norm, activation_fn=lrelu)
 
     with tf.variable_scope('D', reuse=tf.AUTO_REUSE):
         y = x
@@ -144,7 +153,8 @@ def gradient_penalty(f, real, fake=None):
     def _interpolate(a, b=None):
         with tf.name_scope('interpolate'):
             if b is None:   # interpolation in DRAGAN
-                beta = tf.random_uniform(shape=tf.shape(a), minval=0., maxval=1.)
+                beta = tf.random_uniform(
+                    shape=tf.shape(a), minval=0., maxval=1.)
                 _, variance = tf.nn.moments(a, range(a.shape.ndims))
                 b = a + 0.5 * tf.sqrt(variance) * beta
             shape = [tf.shape(a)[0]] + [1] * (a.shape.ndims - 1)

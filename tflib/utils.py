@@ -33,6 +33,7 @@ def print_tensor(tensors):
                         % (type_name, tensor.name, str(tensor.get_shape()),
                            tensor.dtype.name, tensor.device)))
 
+
 prt = print_tensor
 
 
@@ -42,7 +43,8 @@ def shape(tensor):
 
 
 def summary(tensor_collection,
-            summary_type=['mean', 'stddev', 'max', 'min', 'sparsity', 'histogram'],
+            summary_type=['mean', 'stddev', 'max',
+                          'min', 'sparsity', 'histogram'],
             scope=None):
     """Summary.
 
@@ -71,11 +73,14 @@ def summary(tensor_collection,
                 stddev = tf.sqrt(tf.reduce_mean(tf.square(tensor - mean)))
                 summaries.append(tf.summary.scalar(name + '/stddev', stddev))
             if 'max' in summary_type:
-                summaries.append(tf.summary.scalar(name + '/max', tf.reduce_max(tensor)))
+                summaries.append(tf.summary.scalar(
+                    name + '/max', tf.reduce_max(tensor)))
             if 'min' in summary_type:
-                summaries.append(tf.summary.scalar(name + '/min', tf.reduce_min(tensor)))
+                summaries.append(tf.summary.scalar(
+                    name + '/min', tf.reduce_min(tensor)))
             if 'sparsity' in summary_type:
-                summaries.append(tf.summary.scalar(name + '/sparsity', tf.nn.zero_fraction(tensor)))
+                summaries.append(tf.summary.scalar(
+                    name + '/sparsity', tf.nn.zero_fraction(tensor)))
             if 'histogram' in summary_type:
                 summaries.append(tf.summary.histogram(name, tensor))
         return tf.summary.merge(summaries)
