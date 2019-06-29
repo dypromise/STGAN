@@ -20,9 +20,9 @@ import models
 
 import os
 
-# ==============================================================================
-# =                                    param                                   =
-# ==============================================================================
+# ==========================================================================
+#                                  param
+# ==========================================================================
 
 
 def boolean(s):
@@ -32,7 +32,8 @@ def boolean(s):
 parser = argparse.ArgumentParser()
 # settings
 dataroot_default = '/data/Datasets/CelebA/Img'
-parser.add_argument('--dataroot', type=str, default=dataroot_default)
+parser.add_argument('--dataroot', type=str, default=None)
+parser.add_argument('--list_att_file', type=str, default=None)
 parser.add_argument('--gpu', type=str, default='all',
                     help='Specify which gpu to use by `CUDA_VISIBLE_DEVICES= '
                     'num python train.py **kwargs`or `python train.py --gpu'
@@ -181,9 +182,9 @@ if threads >= 0:
 else:
     sess = tl.session()
 crop_ = not use_cropped_img
-tr_data = data.Celeba(dataroot, atts, img_size, batch_size,
+tr_data = data.Celeba(dataroot, args.list_att_file, atts, img_size, batch_size,
                       part='train', sess=sess, crop=crop_)
-val_data = data.Celeba(dataroot, atts, img_size, n_sample,
+val_data = data.Celeba(dataroot, args.list_att_file, atts, img_size, n_sample,
                        part='val', shuffle=False, sess=sess, crop=crop_)
 
 # models
@@ -200,10 +201,18 @@ D = partial(models.D, n_att=n_att, dim=dis_dim,
 
 # inputs
 lr = tf.placeholder(dtype=tf.float32, shape=[])
-
 xa = tr_data.batch_op[0]
 a = tr_data.batch_op[1]
 b = tf.random_shuffle(a)
+
+# **********************************
+# shuffle hair color atts only
+# **********************************
+# hair_color_idxs = tf.constant(
+#     [[0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0]], dtype='int64')
+# mask_ = tf.tile(hair_color_idxs, [batch_size, 1])
+# b = tf.random_shuffle(tf.multiply(a, mask_)) + tf.multiply((1 - mask_), a)
+
 _a = (tf.to_float(a) * 2 - 1) * thres_int
 _b = (tf.to_float(b) * 2 - 1) * thres_int
 
@@ -342,7 +351,7 @@ ckpt_dir = './output/%s/checkpoints' % experiment_name
 pylib.mkdir(ckpt_dir)
 
 try:
-    assert clear == False
+    assert clear is False
     tl.load_checkpoint(ckpt_dir, sess)
 except:
     print('NOTE: Initializing all parameters...')
