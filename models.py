@@ -40,7 +40,8 @@ def Genc(x, dim=64, n_layers=5, multi_inputs=1, is_training=True):
         return zs
 
 
-def ConvGRUCell(in_data, state, out_channel, is_training=True, kernel_size=3, norm='none', pass_state='lstate'):
+def ConvGRUCell(in_data, state, out_channel, is_training=True, kernel_size=3,
+                norm='none', pass_state='lstate'):
     if norm == 'bn':
         norm_fn = partial(batch_norm, is_training=is_training)
     elif norm == 'in':
@@ -68,7 +69,8 @@ def ConvGRUCell(in_data, state, out_channel, is_training=True, kernel_size=3, no
             return output, new_state
 
 
-def Gstu(zs, _a, dim=64, n_layers=1, inject_layers=0, is_training=True, kernel_size=3, norm='none', pass_state='stu'):
+def Gstu(zs, _a, dim=64, n_layers=1, inject_layers=0, is_training=True,
+         kernel_size=3, norm='none', pass_state='stu'):
     def _concat(z, z_, _a):
         feats = [z]
         if z_ is not None:
@@ -84,8 +86,11 @@ def Gstu(zs, _a, dim=64, n_layers=1, inject_layers=0, is_training=True, kernel_s
         state = _concat(zs[-1], None, _a)
         for i in range(n_layers):  # n_layers <= 4
             d = min(dim * 2**(n_layers - 1 - i), MAX_DIM)
-            output = ConvGRUCell(zs[n_layers - 1 - i], state, d, is_training=is_training,
-                                 kernel_size=kernel_size, norm=norm, pass_state=pass_state)
+            output = ConvGRUCell(zs[n_layers - 1 - i], state, d,
+                                 is_training=is_training,
+                                 kernel_size=kernel_size,
+                                 norm=norm,
+                                 pass_state=pass_state)
             zs_.insert(0, output[0])
             if inject_layers > i:
                 state = _concat(output[1], None, _a)
@@ -94,7 +99,8 @@ def Gstu(zs, _a, dim=64, n_layers=1, inject_layers=0, is_training=True, kernel_s
         return zs_
 
 
-def Gdec(zs, _a, dim=64, n_layers=5, shortcut_layers=1, inject_layers=0, is_training=True, one_more_conv=0):
+def Gdec(zs, _a, dim=64, n_layers=5, shortcut_layers=1, inject_layers=0,
+         is_training=True, one_more_conv=0):
     bn = partial(batch_norm, is_training=is_training)
     dconv_bn_relu = partial(dconv, normalizer_fn=bn, activation_fn=relu)
 

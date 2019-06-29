@@ -6,10 +6,8 @@ import tensorflow as tf
 
 
 def tensors_filter(tensors, filters, combine_type='or'):
-    assert isinstance(tensors, (
-        list, tuple)), '`tensors` shoule be a list or tuple!'
-    assert isinstance(filters, (
-        str, list, tuple)), '`filters` should be a string or a list(tuple) of strings!'
+    assert isinstance(tensors, (list, tuple)), '`tensors` shoule be a list or tuple!'
+    assert isinstance(filters, (str, list, tuple)), '`filters` should be a string or a list(tuple) of strings!'
     assert combine_type == 'or' or combine_type == 'and', "`combine_type` should be 'or' or 'and'!"
 
     if isinstance(filters, str):
