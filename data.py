@@ -169,8 +169,9 @@ class Celeba(Dataset):
         # elif os.path.exists(img_dir_jpg):
         #     img_paths = [os.path.join(img_dir_jpg, name) for name in names]
         img_dir = data_dir
-        img_paths = [os.path.join(img_dir, name.replace(
-            '.jpg', '.png')) for name in names]
+        # img_paths = [os.path.join(img_dir, name.replace(
+        #     '.jpg', '.png')) for name in names]
+        img_paths = [os.path.join(img_dir, name) for name in names]
 
         att_id = [Celeba.att_dict[att] + 1 for att in atts]
         labels = np.loadtxt(list_file, skiprows=2,
@@ -208,8 +209,11 @@ class Celeba(Dataset):
             drop_remainder = False
             shuffle = False
             repeat = 1
-            img_paths = img_paths[182637:]
-            labels = labels[182637:]
+            # img_paths = img_paths[182637:]
+            # labels = labels[182637:]
+            img_paths = img_paths[:]
+            self.img_paths = img_paths
+            labels = labels[:]
         elif part == 'val':
             img_paths = img_paths[182000:182637]
             labels = labels[182000:182637]
@@ -253,17 +257,10 @@ class Celeba(Dataset):
                 for n in ['Black_Hair', 'Blond_Hair', 'Brown_Hair', 'Gray_Hair']:
                     if n != att_name:
                         _set(att, 0, n)
-                #_set(att, 0, 'bald')
             elif att_name in ['Straight_Hair', 'Wavy_Hair'] and att[att_id] == 1:
                 for n in ['Straight_Hair', 'Wavy_Hair']:
                     if n != att_name:
                         _set(att, 0, n)
-# Removed since `Mustache` and `No_Beard` are not conflict.
-# But the two attributes are not well labeled in the dataset.
-#            elif att_name in ['Mustache', 'No_Beard'] and att[att_id] == 1:
-#                for n in ['Mustache', 'No_Beard']:
-#                    if n != att_name:
-#                        _set(att, 0, n)
 
         return att_batch
 

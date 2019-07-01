@@ -29,6 +29,8 @@ parser.add_argument('--experiment_name', help='experiment_name')
 parser.add_argument('--gpu', type=str, default='all', help='gpu')
 parser.add_argument('--datadir', type=str,
                     default='/data/Datasets/CelebA/Img')
+parser.add_argument('--output_dir', type=str, default='sample_testing',
+                    help='the ouput of sample_testing result')
 # if assigned, only given images will be tested.
 parser.add_argument('--img', type=int, nargs='+',
                     default=None, help='e.g., --img 182638 202599')
@@ -43,6 +45,7 @@ parser.add_argument('--test_int', type=float, default=1.0, help='test_int')
 parser.add_argument('--test_slide', action='store_true', default=False)
 parser.add_argument('--n_slide', type=int, default=10)
 parser.add_argument('--test_att', type=str, default=None)
+parser.add_argument('--label', type=str, default='diff')
 parser.add_argument('--test_int_min', type=float, default=-1.0)
 parser.add_argument('--test_int_max', type=float, default=1.0)
 args_ = parser.parse_args()
@@ -140,13 +143,17 @@ else:
 # ===========================================================================
 #                                    test
 # ===========================================================================
-test_out_dir = os.path.join('output', experiment_name, 'sample_testing')
+test_out_dir = os.path.join('output', experiment_name, args_.output_dir)
 if not os.path.exists(test_out_dir):
     os.mkdir(test_out_dir)
-att_names = ['Recon', 'Bald', 'Bangs', 'Black_Hair', 'Blond_Hair',
+
+att_names = ['Bald', 'Bangs', 'Black_Hair', 'Blond_Hair',
              'Brown_Hair', 'Bushy_Eyebrows', 'Eyeglasses', 'Male',
              'Mouth_Slightly_Open', 'Mustache', 'No_Beard', 'Pale_Skin',
-             'Young']
+             'Young', 'HairLength']
+
+Blond_Hair_idx = att_names.index('Blond_Hair')
+
 att_dirs = []
 for att in att_names:
     att_dir = os.path.join(test_out_dir, att)
@@ -165,76 +172,33 @@ try:
     for idx, batch in enumerate(te_data):
         xa_sample_ipt = batch[0]
         a_sample_ipt = batch[1]
-        b_sample_ipt_list = [a_sample_ipt.copy()
-                             for _ in range(n_slide if test_slide else 1)]
-        if test_slide:  # test_slide
-            for i in range(n_slide):
-                test_int = (test_int_max - test_int_min) / \
-                    (n_slide - 1) * i + test_int_min
-                b_sample_ipt_list[i] = (
-                    b_sample_ipt_list[i] * 2 - 1) * thres_int
-                b_sample_ipt_list[i][..., atts.index(test_att)] = test_int
-        elif multi_atts:  # test_multiple_attributes
-            for a in test_atts:
-                i = atts.index(a)
-                b_sample_ipt_list[-1][:, i] = 1 - b_sample_ipt_list[-1][:, i]
-                b_sample_ipt_list[-1] = data.Celeba.check_attribute_conflict(
-                    b_sample_ipt_list[-1], atts[i], atts)
-        else:  # test_single_attributes
-            for i in range(len(atts)):
-                tmp = np.array(a_sample_ipt, copy=True)
-                tmp[:, i] = 1 - tmp[:, i]   # inverse attribute
-                tmp = data.Celeba.check_attribute_conflict(tmp, atts[i], atts)
-                b_sample_ipt_list.append(tmp)
+        b_sample_ipt_list = []
 
-        x_sample_opt_list = [xa_sample_ipt, np.full(
-            (1, img_size, img_size // 10, 3), -1.0)]
+        # for i in range(len(atts)):
+        for i in range(Blond_Hair_idx, Blond_Hair_idx + 1):  # idx4: blond hair
+            tmp = np.array(a_sample_ipt, copy=True)
+            tmp[:, i] = 1 - tmp[:, i]   # inverse attribute
+            tmp = data.Celeba.check_attribute_conflict(tmp, atts[i], atts)
+            b_sample_ipt_list.append(tmp)
+
+        x_sample_opt_list = []
         raw_a_sample_ipt = a_sample_ipt.copy()
         raw_a_sample_ipt = (raw_a_sample_ipt * 2 - 1) * thres_int
         for i, b_sample_ipt in enumerate(b_sample_ipt_list):
             _b_sample_ipt = (b_sample_ipt * 2 - 1) * thres_int
-            if not test_slide:
-                if multi_atts:  # i must be 0
-                    for t_att, t_int in zip(test_atts, test_ints):
-                        _b_sample_ipt[..., atts.index(
-                            t_att)] = _b_sample_ipt[
-                                ..., atts.index(t_att)] * t_int
-                if i > 0:   # i == 0 is for reconstruction
-                    _b_sample_ipt[..., i - 1] = _b_sample_ipt[
-                        ..., i - 1] * test_int
-
+            _b_sample_ipt[..., i - 1] = _b_sample_ipt[..., i - 1] * test_int
             x_sample_opt_list.append(sess.run(
                 x_sample, feed_dict={xa_sample: xa_sample_ipt,
                                      _b_sample: _b_sample_ipt,
                                      raw_b_sample: raw_a_sample_ipt}
             ))
 
-        img_name = te_data.img_paths[idx].split('/')[-1].split('.')[0]
-        for att_idx in range(2, len(x_sample_opt_list)):
+        img_name = os.path.basename(te_data.img_paths[idx])
+        for att_idx in range(len(x_sample_opt_list)):
             x_att_res = x_sample_opt_list[att_idx]
+            im.imwrite(x_att_res.squeeze(0), '%s/%s.png' %
+                       (att_dirs[Blond_Hair_idx], img_name))
 
-            # im.imwrite(x_att_res.squeeze(0), '%s/%06d_res.png' % (att_dirs[
-            #     att_idx - 2], idx + 182638 if img is None else img[idx]))
-            im.imwrite(x_att_res.squeeze(0), '%s/%s.png' % (att_dirs[
-                att_idx - 2], img_name))
-
-        # sample = np.concatenate(x_sample_opt_list, 2)
-
-        # if test_slide:
-        #     save_folder = 'sample_testing_slide'
-        # elif multi_atts:
-        #     save_folder = 'sample_testing_multi'
-        # else:
-        #     save_folder = 'sample_testing'
-        # save_dir = './output/%s/%s' % (experiment_name, save_folder)
-        # pylib.mkdir(save_dir)
-        # # im.imwrite(sample.squeeze(0), '%s/%06d%s.png' % (
-        # #     save_dir, idx + 182638 if img is None else img[idx], '_%s' % (
-        # #         str(test_atts)) if multi_atts else ''))
-        # im.imwrite(sample.squeeze(0), '%s/%06d_res.png' % (
-        #     save_dir, idx + 182638 if img is None else img[idx]))
-
-        # print('{} done!'.format(idx + 182638 if img is None else img[idx]))
         print('{}.png done!'.format(img_name))
 
 except:
