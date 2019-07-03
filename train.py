@@ -113,7 +113,7 @@ parser.add_argument('--use_cropped_img', action='store_true')
 parser.add_argument('--experiment_name',
                     default=datetime.datetime.now().strftime(
                         "%Y.%m.%d-%H%M%S"))
-parser.add_argument('--num_ckpt', type=int, default=1)
+parser.add_argument('--num_ckpt', type=int, default=100)
 parser.add_argument('--clear', default=False, action='store_true')
 
 args = parser.parse_args()
