@@ -152,7 +152,7 @@ att_names = ['Bald', 'Bangs', 'Black_Hair', 'Blond_Hair',
              'Mouth_Slightly_Open', 'Mustache', 'No_Beard', 'Pale_Skin',
              'Young', 'HairLength']
 
-Blond_Hair_idx = att_names.index('Blond_Hair')
+Blond_Hair_idx = att_names.index('Young')
 
 att_dirs = []
 for att in att_names:
