@@ -20,9 +20,9 @@ import models
 import os
 
 
-# ==========================================================================
-#                                   param
-# ==========================================================================
+# ==============================================================================
+# =                                    param                                   =
+# ==============================================================================
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--experiment_name', help='experiment_name')
@@ -114,10 +114,12 @@ te_data = data.Celeba(dataroot, atts, img_size, 1, part='test',
 # models
 Genc = partial(models.Genc, dim=enc_dim, n_layers=enc_layers,
                multi_inputs=multi_inputs)
-Gdec = partial(models.Gdec, dim=dec_dim, n_layers=dec_layers, shortcut_layers=shortcut_layers,
-               inject_layers=inject_layers, one_more_conv=one_more_conv)
-Gstu = partial(models.Gstu, dim=stu_dim, n_layers=stu_layers, inject_layers=stu_inject_layers,
-               kernel_size=stu_kernel_size, norm=stu_norm, pass_state=stu_state)
+Gdec = partial(models.Gdec, dim=dec_dim, n_layers=dec_layers,
+               shortcut_layers=shortcut_layers, inject_layers=inject_layers,
+               one_more_conv=one_more_conv)
+Gstu = partial(models.Gstu, dim=stu_dim, n_layers=stu_layers,
+               inject_layers=stu_inject_layers, kernel_size=stu_kernel_size,
+               norm=stu_norm, pass_state=stu_state)
 
 # inputs
 xa_sample = tf.placeholder(tf.float32, shape=[None, img_size, img_size, 3])
@@ -128,7 +130,8 @@ raw_b_sample = tf.placeholder(tf.float32, shape=[None, n_att])
 test_label = _b_sample - raw_b_sample if label == 'diff' else _b_sample
 if use_stu:
     x_sample = Gdec(Gstu(Genc(xa_sample, is_training=False),
-                         test_label, is_training=False), test_label, is_training=False)
+                         test_label, is_training=False), test_label,
+                    is_training=False)
 else:
     x_sample = Gdec(Genc(xa_sample, is_training=False),
                     test_label, is_training=False)
@@ -183,9 +186,11 @@ try:
                 if i > 0:   # i == 0 is for reconstruction
                     _b_sample_ipt[..., i -
                                   1] = _b_sample_ipt[..., i - 1] * test_int
-            x_sample_opt_list.append(sess.run(x_sample, feed_dict={xa_sample: xa_sample_ipt,
-                                                                   _b_sample: _b_sample_ipt,
-                                                                   raw_b_sample: raw_a_sample_ipt}))
+            x_sample_opt_list.append(sess.run(
+                x_sample,
+                feed_dict={xa_sample: xa_sample_ipt,
+                           _b_sample: _b_sample_ipt,
+                           raw_b_sample: raw_a_sample_ipt}))
         sample = np.concatenate(x_sample_opt_list, 2)
 
         if test_slide:

@@ -150,9 +150,10 @@ if not os.path.exists(test_out_dir):
 att_names = ['Bald', 'Bangs', 'Black_Hair', 'Blond_Hair',
              'Brown_Hair', 'Bushy_Eyebrows', 'Eyeglasses', 'Male',
              'Mouth_Slightly_Open', 'Mustache', 'No_Beard', 'Pale_Skin',
-             'Young', 'HairLength']
+             'Young']
 
 Blond_Hair_idx = att_names.index('Young')
+
 
 att_dirs = []
 for att in att_names:
@@ -174,12 +175,21 @@ try:
         a_sample_ipt = batch[1]
         b_sample_ipt_list = []
 
-        # for i in range(len(atts)):
-        for i in range(Blond_Hair_idx, Blond_Hair_idx + 1):  # idx4: blond hair
+        if multi_atts:
             tmp = np.array(a_sample_ipt, copy=True)
-            tmp[:, i] = 1 - tmp[:, i]   # inverse attribute
-            tmp = data.Celeba.check_attribute_conflict(tmp, atts[i], atts)
+            for a in test_atts:
+                i = atts.index(a)
+                tmp[:, i] = 1 - tmp[:, i]   # inverse attribute
+                tmp = data.Celeba.check_attribute_conflict(tmp, atts[i], atts)
             b_sample_ipt_list.append(tmp)
+
+        else:
+            # for i in range(len(atts)):
+            for i in range(Blond_Hair_idx, Blond_Hair_idx + 1):  # idx4: blond hair
+                tmp = np.array(a_sample_ipt, copy=True)
+                tmp[:, i] = 1 - tmp[:, i]   # inverse attribute
+                tmp = data.Celeba.check_attribute_conflict(tmp, atts[i], atts)
+                b_sample_ipt_list.append(tmp)
 
         x_sample_opt_list = []
         raw_a_sample_ipt = a_sample_ipt.copy()
@@ -205,3 +215,4 @@ except:
     traceback.print_exc()
 finally:
     sess.close()
+

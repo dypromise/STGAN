@@ -46,9 +46,11 @@ parser.add_argument('--threads', type=int, default=-1,
                           please leave it as is if no heavy cpu \
                               burden is observed.')
 # model
-att_default = ['Bald', 'Bangs', 'Black_Hair', 'Blond_Hair', 'Brown_Hair',
-               'Bushy_Eyebrows', 'Eyeglasses', 'Male', 'Mouth_Slightly_Open',
-               'Mustache', 'No_Beard', 'Pale_Skin', 'Young']
+att_default = ['Bags_Under_Eyes', 'Bangs', 'Big_Lips', 'Big_Nose',
+               'Black_Hair', 'Blond_Hair', 'Brown_Hair', 'Double_Chin',
+               'Gray_Hair', 'Rosy_Cheeks', 'Bushy_Eyebrows', 'Eyeglasses',
+               'Male', 'Mouth_Slightly_Open', 'Smiling', 'Goatee',
+               'Mustache', 'No_Beard', 'Sideburns', 'Pale_Skin', 'Young']
 parser.add_argument('--atts', default=att_default,
                     choices=data.Celeba.att_dict.keys(), nargs='+',
                     help='Attributes to modify by the model')
@@ -113,7 +115,7 @@ parser.add_argument('--use_cropped_img', action='store_true')
 parser.add_argument('--experiment_name',
                     default=datetime.datetime.now().strftime(
                         "%Y.%m.%d-%H%M%S"))
-parser.add_argument('--num_ckpt', type=int, default=100)
+parser.add_argument('--num_ckpt', type=int, default=10)
 parser.add_argument('--clear', default=False, action='store_true')
 
 args = parser.parse_args()
@@ -443,3 +445,4 @@ finally:
                            (ckpt_dir, epoch, it_in_epoch, it_per_epoch))
     print('Model is saved at %s!' % save_path)
     sess.close()
+

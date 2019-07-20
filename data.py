@@ -35,8 +35,8 @@ def batch_dataset(dataset, batch_size, prefetch_batch=2, drop_remainder=True,
 
 def disk_image_batch_dataset(img_paths, batch_size, labels=None,
                              prefetch_batch=2, drop_remainder=True,
-                             filter=None, map_func=None, num_threads=16,
-                             shuffle=True, buffer_size=4096, repeat=-1):
+                             filter=None, map_func=None, num_threads=4,
+                             shuffle=True, buffer_size=2048, repeat=-1):
     """Disk image batch dataset.
 
     This function is suitable for jpg and png files
@@ -209,17 +209,17 @@ class Celeba(Dataset):
             drop_remainder = False
             shuffle = False
             repeat = 1
-            # img_paths = img_paths[182637:]
-            # labels = labels[182637:]
-            img_paths = img_paths[:]
+            img_paths = img_paths[-100:]
+            labels = labels[-100:]
+            # img_paths = img_paths[:]
             self.img_paths = img_paths
-            labels = labels[:]
+            # labels = labels[:]
         elif part == 'val':
-            img_paths = img_paths[182000:182637]
-            labels = labels[182000:182637]
+            img_paths = img_paths[-300:-100]
+            labels = labels[-300:-100]
         else:
-            img_paths = img_paths[:182000]
-            labels = labels[:182000]
+            img_paths = img_paths[:-300]
+            labels = labels[:-300]
 
         dataset = disk_image_batch_dataset(img_paths=img_paths,
                                            labels=labels,
@@ -310,3 +310,4 @@ if __name__ == '__main__':
     print(batch[0].min(), batch[1].max(), batch[0].dtype)
     im.imshow(batch[0][1])
     im.show()
+
