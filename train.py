@@ -445,4 +445,3 @@ finally:
                            (ckpt_dir, epoch, it_in_epoch, it_per_epoch))
     print('Model is saved at %s!' % save_path)
     sess.close()
-

@@ -10,7 +10,6 @@ import traceback
 
 import imlib as im
 import numpy as np
-import pylib
 import tensorflow as tf
 import tflib as tl
 
@@ -18,23 +17,27 @@ import data
 import models
 
 import os
+import time
 
 
-# ==============================================================================
-# =                                    param                                   =
-# ==============================================================================
+# ===========================================================================
+#                                   param
+# ===========================================================================
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--experiment_name', help='experiment_name')
 parser.add_argument('--gpu', type=str, default='all', help='gpu')
-parser.add_argument('--dataroot', type=str,
+parser.add_argument('--datadir', type=str,
                     default='/data/Datasets/CelebA/Img')
+parser.add_argument('--output_dir', type=str, default='sample_testing',
+                    help='the ouput of sample_testing result')
 # if assigned, only given images will be tested.
 parser.add_argument('--img', type=int, nargs='+',
                     default=None, help='e.g., --img 182638 202599')
 # for multiple attributes
 parser.add_argument('--test_atts', nargs='+', default=None)
-parser.add_argument('--test_ints', nargs='+', default=None,
+parser.add_argument('--test_att_list', type=str, default=None)
+parser.add_argument('--test_ints', nargs='+', type=float, default=None,
                     help='leave to None for all 1')
 # for single attribute
 parser.add_argument('--test_int', type=float, default=1.0, help='test_int')
@@ -42,6 +45,7 @@ parser.add_argument('--test_int', type=float, default=1.0, help='test_int')
 parser.add_argument('--test_slide', action='store_true', default=False)
 parser.add_argument('--n_slide', type=int, default=10)
 parser.add_argument('--test_att', type=str, default=None)
+parser.add_argument('--label', type=str, default='diff')
 parser.add_argument('--test_int_min', type=float, default=-1.0)
 parser.add_argument('--test_int_max', type=float, default=1.0)
 args_ = parser.parse_args()
@@ -74,7 +78,6 @@ multi_inputs = args['multi_inputs']
 rec_loss_weight = args['rec_loss_weight']
 one_more_conv = args['one_more_conv']
 
-dataroot = args_.dataroot
 img = args_.img
 print('Using selected images:', img)
 
@@ -87,7 +90,7 @@ if gpu != 'all':
 test_atts = args_.test_atts
 test_ints = args_.test_ints
 if test_atts is not None and test_ints is None:
-    test_ints = [1 for i in range(len(test_atts))]
+    test_ints = [1.0 for i in range(len(test_atts))]
 # single attribute
 test_int = args_.test_int
 # slide attribute
@@ -103,14 +106,17 @@ use_cropped_img = args['use_cropped_img']
 experiment_name = args_.experiment_name
 
 
-# ==============================================================================
-# =                                   graphs                                   =
-# ==============================================================================
+# ===========================================================================
+#                                  graphs
+# ===========================================================================
 
-# data
+# os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
+
+# dataset
 sess = tl.session()
-te_data = data.Celeba(dataroot, atts, img_size, 1, part='test',
-                      sess=sess, crop=not use_cropped_img, im_no=img)
+te_data = data.Celeba(args_.datadir, args_.test_att_list, atts,
+                      img_size, batch_size=1, part='test', sess=sess,
+                      crop=not use_cropped_img, im_no=img)
 # models
 Genc = partial(models.Genc, dim=enc_dim, n_layers=enc_layers,
                multi_inputs=multi_inputs)
@@ -136,77 +142,61 @@ else:
     x_sample = Gdec(Genc(xa_sample, is_training=False),
                     test_label, is_training=False)
 
-# ==============================================================================
-# =                                    test                                    =
-# ==============================================================================
+# ===========================================================================
+#                                    test
+# ===========================================================================
+test_out_dir = os.path.join('output', experiment_name, args_.output_dir)
+if not os.path.exists(test_out_dir):
+    os.mkdir(test_out_dir)
+
+testing_result_dir = os.path.join(test_out_dir, 'result')
+os.makedirs(testing_result_dir, exist_ok=True)
 
 # initialization
 ckpt_dir = './output/%s/checkpoints' % experiment_name
 tl.load_checkpoint(ckpt_dir, sess)
 
+
 # test
 try:
-    multi_atts = test_atts is not None
     for idx, batch in enumerate(te_data):
         xa_sample_ipt = batch[0]
         a_sample_ipt = batch[1]
-        b_sample_ipt_list = [a_sample_ipt.copy()
-                             for _ in range(n_slide if test_slide else 1)]
-        if test_slide:  # test_slide
-            for i in range(n_slide):
-                test_int = (test_int_max - test_int_min) / \
-                    (n_slide - 1) * i + test_int_min
-                b_sample_ipt_list[i] = (
-                    b_sample_ipt_list[i] * 2 - 1) * thres_int
-                b_sample_ipt_list[i][..., atts.index(test_att)] = test_int
-        elif multi_atts:  # test_multiple_attributes
-            for a in test_atts:
+
+        if test_atts is not None:
+            tmp = np.array(a_sample_ipt, copy=True)
+            for w, a in zip(test_ints, test_atts):
                 i = atts.index(a)
-                b_sample_ipt_list[-1][:, i] = 1 - b_sample_ipt_list[-1][:, i]
-                b_sample_ipt_list[-1] = data.Celeba.check_attribute_conflict(
-                    b_sample_ipt_list[-1], atts[i], atts)
-        else:  # test_single_attributes
-            for i in range(len(atts)):
-                tmp = np.array(a_sample_ipt, copy=True)
-                tmp[:, i] = 1 - tmp[:, i]   # inverse attribute
+                tmp[:, i] = 1 - tmp[:, i]
                 tmp = data.Celeba.check_attribute_conflict(tmp, atts[i], atts)
-                b_sample_ipt_list.append(tmp)
+            b_sample_ipt = tmp.copy()
 
-        x_sample_opt_list = [xa_sample_ipt, np.full(
-            (1, img_size, img_size // 10, 3), -1.0)]
-        raw_a_sample_ipt = a_sample_ipt.copy()
-        raw_a_sample_ipt = (raw_a_sample_ipt * 2 - 1) * thres_int
-        for i, b_sample_ipt in enumerate(b_sample_ipt_list):
-            _b_sample_ipt = (b_sample_ipt * 2 - 1) * thres_int
-            if not test_slide:
-                if multi_atts:  # i must be 0
-                    for t_att, t_int in zip(test_atts, test_ints):
-                        _b_sample_ipt[..., atts.index(
-                            t_att)] = _b_sample_ipt[..., atts.index(t_att)] * t_int
-                if i > 0:   # i == 0 is for reconstruction
-                    _b_sample_ipt[..., i -
-                                  1] = _b_sample_ipt[..., i - 1] * test_int
-            x_sample_opt_list.append(sess.run(
-                x_sample,
-                feed_dict={xa_sample: xa_sample_ipt,
-                           _b_sample: _b_sample_ipt,
-                           raw_b_sample: raw_a_sample_ipt}))
-        sample = np.concatenate(x_sample_opt_list, 2)
+        raw_a_sample_ipt = (a_sample_ipt.copy() * 2 - 1) * thres_int
+        raw_b_sample_ipt = (b_sample_ipt * 2 - 1) * thres_int  # -0.5,0.5
 
-        if test_slide:
-            save_folder = 'sample_testing_slide'
-        elif multi_atts:
-            save_folder = 'sample_testing_multi'
-        else:
-            save_folder = 'sample_testing'
-        save_dir = './output/%s/%s' % (experiment_name, save_folder)
-        pylib.mkdir(save_dir)
-        im.imwrite(sample.squeeze(0), '%s/%06d%s.png' % (save_dir,
-                                                         idx
-                                                         + 182638 if img is None else img[idx],
-                                                         '_%s' % (str(test_atts)) if multi_atts else ''))
+        for a, w in zip(test_atts, test_ints):
+            i = atts.index(a)
+            raw_b_sample_ipt[:, i] = raw_b_sample_ipt[:, i] * w
 
-        print('%06d.png done!' % (idx + 182638 if img is None else img[idx]))
+        print(raw_a_sample_ipt)
+        print(raw_b_sample_ipt)
+        print(raw_b_sample_ipt - raw_a_sample_ipt)
+
+        start_ = time.time()
+        x_att_res = sess.run(
+            x_sample, feed_dict={xa_sample: xa_sample_ipt,
+                                 _b_sample: raw_b_sample_ipt,
+                                 raw_b_sample: raw_a_sample_ipt}
+        )
+        end_ = time.time()
+
+        print("cost: {}".format(end_ - start_))
+        img_name = os.path.basename(te_data.img_paths[idx])
+        im.imwrite(x_att_res.squeeze(0), '%s/%s.png' %
+                   (testing_result_dir, img_name))
+
+        print('{}.png done!'.format(img_name))
+
 except:
     traceback.print_exc()
 finally:

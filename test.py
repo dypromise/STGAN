@@ -10,7 +10,6 @@ import traceback
 
 import imlib as im
 import numpy as np
-import pylib
 import tensorflow as tf
 import tflib as tl
 
@@ -18,6 +17,7 @@ import data
 import models
 
 import os
+import time
 
 
 # ===========================================================================
@@ -110,6 +110,8 @@ experiment_name = args_.experiment_name
 #                                  graphs
 # ===========================================================================
 
+# os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
+
 # dataset
 sess = tl.session()
 te_data = data.Celeba(args_.datadir, args_.test_att_list, atts,
@@ -147,20 +149,8 @@ test_out_dir = os.path.join('output', experiment_name, args_.output_dir)
 if not os.path.exists(test_out_dir):
     os.mkdir(test_out_dir)
 
-att_names = ['Bald', 'Bangs', 'Black_Hair', 'Blond_Hair',
-             'Brown_Hair', 'Bushy_Eyebrows', 'Eyeglasses', 'Male',
-             'Mouth_Slightly_Open', 'Mustache', 'No_Beard', 'Pale_Skin',
-             'Young']
-
-Blond_Hair_idx = att_names.index('Young')
-
-
-att_dirs = []
-for att in att_names:
-    att_dir = os.path.join(test_out_dir, att)
-    att_dirs.append(att_dir)
-    if not os.path.exists(att_dir):
-        os.mkdir(att_dir)
+testing_result_dir = os.path.join(test_out_dir, 'result')
+os.makedirs(testing_result_dir, exist_ok=True)
 
 # initialization
 ckpt_dir = './output/%s/checkpoints' % experiment_name
@@ -169,45 +159,51 @@ tl.load_checkpoint(ckpt_dir, sess)
 
 # test
 try:
-    multi_atts = test_atts is not None
     for idx, batch in enumerate(te_data):
         xa_sample_ipt = batch[0]
         a_sample_ipt = batch[1]
         b_sample_ipt_list = []
 
-        if multi_atts:
+        if test_atts is not None:
             tmp = np.array(a_sample_ipt, copy=True)
             for a in test_atts:
                 i = atts.index(a)
                 tmp[:, i] = 1 - tmp[:, i]   # inverse attribute
-                tmp = data.Celeba.check_attribute_conflict(tmp, atts[i], atts)
+                # tmp = data.Celeba.check_attribute_conflict(tmp, atts[i], atts)
             b_sample_ipt_list.append(tmp)
 
-        else:
-            # for i in range(len(atts)):
-            for i in range(Blond_Hair_idx, Blond_Hair_idx + 1):  # idx4: blond hair
-                tmp = np.array(a_sample_ipt, copy=True)
-                tmp[:, i] = 1 - tmp[:, i]   # inverse attribute
-                tmp = data.Celeba.check_attribute_conflict(tmp, atts[i], atts)
-                b_sample_ipt_list.append(tmp)
+        # else:
+        #     for i in range(Blond_Hair_idx, Blond_Hair_idx + 1):
+        #         tmp = np.array(a_sample_ipt, copy=True)
+        #         tmp[:, i] = 1 - tmp[:, i]   # inverse attribute
+        #         tmp = data.Celeba.check_attribute_conflict(tmp, atts[i], atts)
+        #         b_sample_ipt_list.append(tmp)
 
         x_sample_opt_list = []
         raw_a_sample_ipt = a_sample_ipt.copy()
         raw_a_sample_ipt = (raw_a_sample_ipt * 2 - 1) * thres_int
+        print(raw_a_sample_ipt)
+
+        start_ = time.time()
         for i, b_sample_ipt in enumerate(b_sample_ipt_list):
             _b_sample_ipt = (b_sample_ipt * 2 - 1) * thres_int
             _b_sample_ipt[..., i - 1] = _b_sample_ipt[..., i - 1] * test_int
+            print(_b_sample_ipt)
+            print(_b_sample_ipt - raw_a_sample_ipt)
             x_sample_opt_list.append(sess.run(
                 x_sample, feed_dict={xa_sample: xa_sample_ipt,
                                      _b_sample: _b_sample_ipt,
                                      raw_b_sample: raw_a_sample_ipt}
             ))
 
+        end_ = time.time()
+
+        print("cost: {}".format(end_ - start_))
         img_name = os.path.basename(te_data.img_paths[idx])
         for att_idx in range(len(x_sample_opt_list)):
             x_att_res = x_sample_opt_list[att_idx]
             im.imwrite(x_att_res.squeeze(0), '%s/%s.png' %
-                       (att_dirs[Blond_Hair_idx], img_name))
+                       (testing_result_dir, img_name))
 
         print('{}.png done!'.format(img_name))
 
@@ -215,4 +211,3 @@ except:
     traceback.print_exc()
 finally:
     sess.close()
-

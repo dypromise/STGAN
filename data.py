@@ -156,21 +156,8 @@ class Celeba(Dataset):
         super(Celeba, self).__init__()
 
         list_file = att_list_file
-        # if crop:
-        #     img_dir_jpg = os.path.join(data_dir, 'img_align_celeba')
-        #     img_dir_png = os.path.join(data_dir, 'img_align_celeba_png')
-        # else:
-        #     img_dir_jpg = os.path.join(data_dir, 'img_crop_celeba')
-        #     img_dir_png = os.path.join(data_dir, 'img_crop_celeba_png')
         names = np.loadtxt(list_file, skiprows=2, usecols=[0], dtype=np.str)
-        # if os.path.exists(img_dir_png):
-        #     img_paths = [os.path.join(img_dir_png, name.replace(
-        #         'jpg', 'png')) for name in names]
-        # elif os.path.exists(img_dir_jpg):
-        #     img_paths = [os.path.join(img_dir_jpg, name) for name in names]
         img_dir = data_dir
-        # img_paths = [os.path.join(img_dir, name.replace(
-        #     '.jpg', '.png')) for name in names]
         img_paths = [os.path.join(img_dir, name) for name in names]
 
         att_id = [Celeba.att_dict[att] + 1 for att in atts]
@@ -191,8 +178,7 @@ class Celeba(Dataset):
             if crop:
                 img = tf.image.crop_to_bounding_box(
                     img, offset_h, offset_w, img_size, img_size)
-            # img = tf.image.resize_images(img, [img_resize, img_resize]) / 127.5 - 1
-            # or
+
             img = tf.image.resize_images(
                 img, [img_resize, img_resize], tf.image.ResizeMethod.BICUBIC)
             img = tf.clip_by_value(img, 0, 255) / 127.5 - 1
@@ -205,21 +191,32 @@ class Celeba(Dataset):
             repeat = 1
             img_paths = [img_paths[i - 1] for i in im_no]
             labels = labels[[i - 1 for i in im_no]]
+        # elif part == 'test':
+        #     drop_remainder = False
+        #     shuffle = False
+        #     repeat = 1
+        #     img_paths = img_paths[182637:]
+        #     labels = labels[182637:]
+        # elif part == 'val':
+        #     img_paths = img_paths[182000:182637]
+        #     labels = labels[182000:182637]
+        # else:
+        #     img_paths = img_paths[:182000]
+        #     labels = labels[:182000]
         elif part == 'test':
             drop_remainder = False
             shuffle = False
             repeat = 1
-            img_paths = img_paths[-100:]
-            labels = labels[-100:]
-            # img_paths = img_paths[:]
-            self.img_paths = img_paths
-            # labels = labels[:]
+            img_paths = img_paths[:]
+            labels = labels[:]
         elif part == 'val':
-            img_paths = img_paths[-300:-100]
-            labels = labels[-300:-100]
+            img_paths = img_paths[-500:-200]
+            labels = labels[-500:-200]
         else:
-            img_paths = img_paths[:-300]
-            labels = labels[:-300]
+            img_paths = img_paths[:-500]
+            labels = labels[:-500]
+
+        self.img_paths = img_paths
 
         dataset = disk_image_batch_dataset(img_paths=img_paths,
                                            labels=labels,
@@ -310,4 +307,3 @@ if __name__ == '__main__':
     print(batch[0].min(), batch[1].max(), batch[0].dtype)
     im.imshow(batch[0][1])
     im.show()
-
